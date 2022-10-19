@@ -7,3 +7,5 @@ Hay que crear una librería de funciones, denominada  my_lib.c que contenga la i
 
 ## RETO 2
 Implementar un gestor de pilas dinámico y genérico. Cada elemento o nodo de la pila (my_stack_node) será una estructura que tendrá un puntero void a datos (de cualquier tipo) más un puntero al elemento o nodo siguiente. En la estructura my_stack se almacenará, además del puntero al elemento superior de la pila (top), un entero (size) que indique el tamaño del tipo de datos que se guardan en los nodos. 
+
+xd
