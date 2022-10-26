@@ -264,10 +264,7 @@ void *my_stack_pop(struct my_stack *stack)
         free(delete);
         return data;
     }
-    else
-    {
-        return NULL;
-    }
+    return NULL;
 }
 
 /*
@@ -283,9 +280,9 @@ void *my_stack_pop(struct my_stack *stack)
 int my_stack_len(struct my_stack *stack)
 {
     int cont = 0;
-    struct my_stack_node *actual = stack->top;
     if (stack->top != NULL)
     {
+        struct my_stack_node *actual = stack->top;
         cont++;
         while (actual->next != NULL)
         {

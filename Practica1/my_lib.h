@@ -12,7 +12,8 @@ manejo de una pila */
 #include <errno.h>    /* Funciones read(), write(), close()*/
 
 
-//declaraciones funciones libreria string
+////////////////////Declaraciones funciones libreria string////////////////////
+
 size_t my_strlen(const char *str);
 int my_strcmp(const char *str1, const char *str2);
 char *my_strcpy(char *dest, const char *src);
@@ -22,7 +23,8 @@ char *my_strchr(const char *s, int c);
 
 // char *my_strncat(char *dest, const char *src, size_t n);
 
-//estructuras para gestor de pila
+////////////////////Estructuras para gestor de pila////////////////////
+
 struct my_stack_node {      // nodo de la pila (elemento)
     void *data;
     struct my_stack_node *next;
@@ -33,7 +35,7 @@ struct my_stack {   // pila
     struct my_stack_node *top;  // apunta al nodo de la parte superior
 };  
 
-//declaraciones funciones gestor de pila
+////////////////////Declaraciones funciones gestor de pila////////////////////
 struct my_stack *my_stack_init(int size);
 int my_stack_push(struct my_stack *stack, void *data);
 void *my_stack_pop(struct my_stack *stack);
