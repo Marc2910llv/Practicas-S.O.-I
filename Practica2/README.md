@@ -31,7 +31,7 @@ El minishell tendrá las siguientes características:
 
    ## Admitirá redireccionamiento de la salida de un comando a un fichero, indicando “> fichero” al final de la línea
 
-   ## Admitirá procesos en segundo plano (background). Si al final de la línea de comandos hay un “&” el proceso se ejecutrá en segundo plano.
-      Es decir, el shell no esperará a que acabe para seguir leyendo los siguientes comandos (aunque avisará cuando el proceso haya acabado, de forma           similar a cómo lo hace el shell estándard).
+   ## Admitirá procesos en segundo plano (background). 
+   Si al final de la línea de comandos hay un “&” el proceso se ejecutrá en segundo plano. Es decir, el shell no esperará a que acabe para seguir            leyendo los siguientes comandos (aunque avisará cuando el proceso haya acabado, de forma similar a cómo lo hace el shell estándard).
 
    ## Se admitirá la interrupción con Ctrl + C y Ctrl + Z.
