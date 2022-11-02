@@ -1,4 +1,4 @@
-# Practica 1 - S.O. I #
+# Practica 2 - S.O. I #
  Conjunto de prácicas de la asignatura de Sistemas Operativos I
 
 Esta práctica consistirá en la implementación de un mini shell básico basado en el bash de Linux, y tendremos que superar 6 niveles para completar nuestra misión. 
