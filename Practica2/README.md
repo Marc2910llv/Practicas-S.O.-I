@@ -4,7 +4,6 @@
 Esta práctica consistirá en la implementación de un mini shell básico basado en el bash de Linux, y tendremos que superar 6 niveles para completar nuestra misión. 
 
 El minishell tendrá las siguientes características:
-    
     ## Admitirá  varios comandos internos que serán ejecutados por el propio shell y que no generarán la creación de un nuevo proceso:
         * **cd** directorio 
             Para cambiar de directorio actual de trabajo (chdir() al nuevo directorio especificado).
