@@ -1,4 +1,4 @@
-# Practica 1 - S.O. I #
+# Práctica 1 - S.O. I #
  Conjunto de prácicas de la asignatura de Sistemas Operativos I
 
 
