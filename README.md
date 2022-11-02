@@ -1,4 +1,4 @@
-# Practicas - S.O. I
+# Prácticas - S.O. I
 *Conjunto de prácicas de la asignatura de Sistemas Operativos I*
 
 **Autor: Marc Llobera Villalonga**
