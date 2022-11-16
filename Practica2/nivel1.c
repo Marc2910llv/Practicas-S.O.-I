@@ -50,7 +50,6 @@ Autor: Marc Llobera Villalonga
 #define PROMPT '$'
 
 #define DEBUGN1 1 // parse_args()
-#define DEBUGN3 1 // execute_line()
 
 void imprimir_prompt();
 char *read_line(char *line);
@@ -129,7 +128,7 @@ int execute_line(char *line)
 {
     char *args[ARGS_SIZE];
     parse_args(args, line);
-    check_internal(args);
+    return check_internal(args);
 }
 
 /// @brief trocea la línea en tokens
