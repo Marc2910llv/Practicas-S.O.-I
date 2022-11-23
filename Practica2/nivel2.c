@@ -269,9 +269,11 @@ int internal_export(char **args)
     }
     else
     {
-        setenv(valor, nombre, 1); ///////////////
 #if DEBUGN3
         fprintf(stderr, GRIS_T "[internal_export()→ antiguo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
+#endif
+        setenv(nombre, valor, 1); ///////////////
+#if DEBUGN3
         fprintf(stderr, GRIS_T "[internal_export()→ nuevo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
 #endif
     }

@@ -177,9 +177,6 @@ int execute_line(char *line)
             {
                 execvp(args[0], args);
                 fprintf(stderr, ROJO_T "%s: no se encontró la orden\n" RESET, args[0]);
-#if DEBUGN4
-                fprintf(stderr, GRIS_T "[execute_line()→ Proceso hijo %d(%s) finalizado con exit(), estado: 0]\n" RESET, pid, auxline);
-#endif
                 exit(-1);
             }
             else if (pid > 0) // PADRE
@@ -190,6 +187,9 @@ int execute_line(char *line)
                 fprintf(stderr, GRIS_T "[execute_line()→ PID hijo: %d(%s)]\n" RESET, pid, auxline);
 #endif
                 wait(NULL);
+#if DEBUGN4
+                fprintf(stderr, GRIS_T "[execute_line()→ Proceso hijo %d(%s) finalizado con exit(), estado: 0]\n" RESET, pid, auxline);
+#endif
                 resetear_joblist_0();
             }
             else // error
