@@ -44,8 +44,8 @@ Autor: Marc Llobera Villalonga
 #define PROMPT '$'
 
 #define DEBUGN1 0 // parse_args()
-#define DEBUGN2 0 // check_internal()
-#define DEBUGN3 0 // internal export & internal cd
+#define DEBUGN2 1 // check_internal()
+#define DEBUGN3 1 // internal export & internal cd
 
 void imprimir_prompt();
 char *read_line(char *line);
@@ -129,6 +129,7 @@ int execute_line(char *line)
     {
         perror("Error\n");
     }
+    return 0;
 }
 
 /// @brief trocea la línea en tokens
@@ -268,7 +269,7 @@ int internal_export(char **args)
     }
     else
     {
-        setenv(valor, nombre, 1); ///////////////*****************Preguntar porque no funciona*************//////////////////
+        setenv(valor, nombre, 1); ///////////////
 #if DEBUGN3
         fprintf(stderr, GRIS_T "[internal_export()→ antiguo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
         fprintf(stderr, GRIS_T "[internal_export()→ nuevo valor para %s: %s]\n" RESET, nombre, getenv(nombre));

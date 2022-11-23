@@ -45,8 +45,10 @@ Autor: Marc Llobera Villalonga
 #define PROMPT '$'
 
 #define DEBUGN1 0 // parse_args()
-#define DEBUGN2 0 // check_internal()
+#define DEBUGN2 1 // check_internal()
 #define DEBUGN3 0 // internal export & internal cd
+#define DEBUGN4 1 // execute_line()
+#define DEBUGN5 1 // internal source
 
 void imprimir_prompt();
 char *read_line(char *line);
@@ -71,6 +73,28 @@ struct info_job
 };
 
 static struct info_job jobs_list[N_JOBS];
+int resetear_joblist_0();
+int actualizar_joblist_0(pid_t pid, char *line);
+
+/// @brief resetear jobs_list[0]
+int resetear_joblist_0()
+{
+    jobs_list[0].pid = 0;
+    jobs_list[0].status = 'N';
+    strcpy(jobs_list[0].cmd, "\0");
+    return 0;
+}
+
+/// @brief actualizar jobs_list[0] con el pid y la linia por parámetro
+/// @param line
+/// @param pid
+int actualizar_joblist_0(pid_t pid, char *line)
+{
+    jobs_list[0].pid = pid;
+    jobs_list[0].status = 'E';
+    strcpy(jobs_list[0].cmd, line);
+    return 0;
+}
 
 static char mi_shell[COMMAND_LINE_SIZE];
 // variable global para guardar el nombre del minishell
@@ -81,7 +105,7 @@ void imprimir_prompt()
 {
     printf(MAGENTA_T "%s" BLANCO_T ":", getenv("USER")); // imprimir usuario
 
-    char prompt[COMMAND_LINE_SIZE];                          // #define COMMAND_LINE_SIZE 1024
+    char prompt[COMMAND_LINE_SIZE];
     printf(CYAN_T "~%s", getcwd(prompt, COMMAND_LINE_SIZE)); // imprimir directorio
 
     printf(BLANCO_T "%c ", PROMPT);
@@ -93,11 +117,9 @@ void imprimir_prompt()
 /// @param argv
 int main(int argc, char *argv[])
 {
-    char line[COMMAND_LINE_SIZE]; // #define COMMAND_LINE_SIZE 1024
+    char line[COMMAND_LINE_SIZE];
 
-    jobs_list[0].pid = 0;
-    jobs_list[0].status = 'N';
-    memset(jobs_list[0].cmd, '\0', COMMAND_LINE_SIZE);
+    resetear_joblist_0();
 
     strcpy(mi_shell, argv[0]);
 
@@ -106,8 +128,8 @@ int main(int argc, char *argv[])
         if (read_line(line))
         { // !=NULL
             execute_line(line);
-        };
-    };
+        }
+    }
 }
 
 /// @brief leer linea
@@ -138,29 +160,46 @@ char *read_line(char *line)
     return pLine;
 }
 
-/// @brief
+/// @brief ejecuta el comando entrado por consola
 /// @param line
-/// @return
 int execute_line(char *line)
 {
     char *args[ARGS_SIZE];
+    pid_t pid;
+    char *auxline = line;
     if (parse_args(args, line) > 0)
     {
         int rtn = check_internal(args);
-        if (rtn == -1)
+        if (rtn == 0)
         {
-            perror("Error\n");
-        }
-        else if (rtn = 0)
-        {
-            fork();
-            execvp(args[0], args);
-            fprintf(stderr, ROJO_T "Error al ejecutar comando externo\n" RESET);
-            exit(-1);
+            pid = fork();
+            if (pid == 0) // HIJO
+            {
+                execvp(args[0], args);
+                fprintf(stderr, ROJO_T "%s: no se encontró la orden\n" RESET, args[0]);
+#if DEBUGN4
+                fprintf(stderr, GRIS_T "[execute_line()→ Proceso hijo %d(%s) finalizado con exit(), estado: 0]\n" RESET, pid, auxline);
+#endif
+                exit(-1);
+            }
+            else if (pid > 0) // PADRE
+            {
+                actualizar_joblist_0(pid, auxline);
+#if DEBUGN4
+                fprintf(stderr, GRIS_T "[execute_line()→ PID padre: %d(%s)]\n" RESET, getpid(), mi_shell);
+                fprintf(stderr, GRIS_T "[execute_line()→ PID hijo: %d(%s)]\n" RESET, pid, auxline);
+#endif
+                wait(NULL);
+                resetear_joblist_0();
+            }
+            else // error
+            {
+                perror("Error fork\n");
+            }
         }
     }
+    return 0;
 }
-
 
 /// @brief trocea la línea en tokens
 /// @param args
@@ -238,14 +277,10 @@ int check_internal(char **args)
 /// @return -1 si hay error, 1 si no lo hay para indicar que es comando interno
 int internal_cd(char **args)
 {
-#if DEBUGN2
-    fprintf(stderr, GRIS_T "[internal_cd()→ Esta función cambiará de directorio]\n" RESET);
-#endif
     if (args[1] != NULL)
     {
         if (chdir(args[1]) == -1)
         {
-            perror("Error en internal_cd");
             return -1;
         }
 #if DEBUGN3
@@ -257,7 +292,6 @@ int internal_cd(char **args)
     {
         if (chdir(getenv("HOME")) == -1)
         {
-            perror("Error en internal_cd");
             return -1;
         }
 
@@ -273,9 +307,6 @@ int internal_cd(char **args)
 /// @return -1 si hay error, 1 si no lo hay para indicar que es comando interno
 int internal_export(char **args)
 {
-#if DEBUGN2
-    fprintf(stderr, GRIS_T "[internal_export()→Esta función asignará valores a variablescd de entorno]\n" RESET);
-#endif
     char *nombre;
     char *valor;
     nombre = strtok(args[1], "=");
@@ -308,11 +339,45 @@ int internal_export(char **args)
     return 1;
 }
 
+/// @brief Se comprueban los argumentos y se muestra la sintaxis en caso de no ser correcta
+/// @param args
+/// @return -1 si hay error, 1 si no lo hay para indicar que es comando interno
 int internal_source(char **args)
 {
-#if DEBUGN2
-    fprintf(stderr, GRIS_T "[internal_source()→Esta función ejecutará un fichero de líneas de comandos]\n" RESET);
+    if (args[1] == NULL)
+    {
+        fprintf(stderr, ROJO_T "Error de sintaxis. Uso: source <nombre_fichero>\n" RESET);
+        return -1;
+    }
+
+    FILE *fp = fopen(args[1], "r");
+    if (fp == 0)
+    {
+        fprintf(stderr, ROJO_T "Error, no se encontró el fichero\n" RESET);
+        return -1;
+    }
+
+    char str[COMMAND_LINE_SIZE];
+    while (fgets(str, COMMAND_LINE_SIZE, fp) != NULL)
+    {
+        int i = 0;
+        while (str[i] != '\n')
+        {
+            i++;
+        }
+        str[i] = '\0';
+#if DEBUGN5
+        fprintf(stderr, GRIS_T "\n[internal_source()→ LINE: %s]\n" RESET, str);
 #endif
+        fflush(stdout);
+        execute_line(str);
+    }
+
+    if (fclose(fp) != 0)
+    {
+        perror("Error, no se ha cerrado el fichero correctamente\n");
+        return -1;
+    }
     return 1;
 }
 
