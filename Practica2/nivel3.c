@@ -1,11 +1,11 @@
 /*
 -------------------------------------------------------------------------------------------------
-Nivel 2 de la Práctica 2
+Nivel 3 de la Práctica 2
 
-En este nivel implementaremos los comandos internos cd y export de nuestro mini shell,
-y también veremos cómo tratar los errores que pueden producir las llamadas a sistema,
-y en general cómo utilizar el flujo estándar de errores para mostrar cualquier error de
-nuestros programas.
+En este nivel prepararemos nuestro minishell para que sea capaz de ejecutar, a través de la
+llamada al sistema execvp(), los comandos que no sean internos. Cada vez que detectemos que se
+trata de un comando externo, el minishell (proceso padre) creará un hijo que se encargue de él.
+También seguiremos implementando comandos internos, en concreto el source.
 
 
 Autor: Marc Llobera Villalonga
@@ -40,12 +40,13 @@ Autor: Marc Llobera Villalonga
 
 #define COMMAND_LINE_SIZE 1024
 #define ARGS_SIZE 64
+#define N_JOBS 64
 
 #define PROMPT '$'
 
 #define DEBUGN1 0 // parse_args()
 #define DEBUGN2 0 // check_internal()
-#define DEBUGN3 1 // internal export & internal cd
+#define DEBUGN3 0 // internal export & internal cd
 
 void imprimir_prompt();
 char *read_line(char *line);
@@ -61,6 +62,15 @@ int internal_jobs(char **args);
 int internal_bg(char **args);
 int internal_fg(char **args);
 // --------------------------------
+
+struct info_job
+{
+    pid_t pid;
+    char status;                 // ‘N’, ’E’, ‘D’, ‘F’ (‘N’: ninguno, ‘E’: Ejecutándose y ‘D’: Detenido, ‘F’: Finalizado)
+    char cmd[COMMAND_LINE_SIZE]; // línea de comando asociada
+};
+
+static struct info_job jobs_list[N_JOBS];
 
 /// @brief imprimir_prompt
 /// Función auxiliar para imprimir PROMPT personalizado
