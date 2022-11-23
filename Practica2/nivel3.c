@@ -72,6 +72,9 @@ struct info_job
 
 static struct info_job jobs_list[N_JOBS];
 
+static char mi_shell[COMMAND_LINE_SIZE];
+// variable global para guardar el nombre del minishell
+
 /// @brief imprimir_prompt
 /// Función auxiliar para imprimir PROMPT personalizado
 void imprimir_prompt()
@@ -91,6 +94,13 @@ void imprimir_prompt()
 int main(int argc, char *argv[])
 {
     char line[COMMAND_LINE_SIZE]; // #define COMMAND_LINE_SIZE 1024
+
+    jobs_list[0].pid = 0;
+    jobs_list[0].status = 'N';
+    memset(jobs_list[0].cmd, '\0', COMMAND_LINE_SIZE);
+
+    strcpy(mi_shell, argv[0]);
+
     while (1)
     {
         if (read_line(line))
@@ -134,9 +144,23 @@ char *read_line(char *line)
 int execute_line(char *line)
 {
     char *args[ARGS_SIZE];
-    parse_args(args, line);
-    return check_internal(args);
+    if (parse_args(args, line) > 0)
+    {
+        int rtn = check_internal(args);
+        if (rtn == -1)
+        {
+            perror("Error\n");
+        }
+        else if (rtn = 0)
+        {
+            fork();
+            execvp(args[0], args);
+            fprintf(stderr, ROJO_T "Error al ejecutar comando externo\n" RESET);
+            exit(-1);
+        }
+    }
 }
+
 
 /// @brief trocea la línea en tokens
 /// @param args
@@ -211,7 +235,7 @@ int check_internal(char **args)
 
 /// @brief Comando cd para cambiar de directorio
 /// @param args
-/// @return
+/// @return -1 si hay error, 1 si no lo hay para indicar que es comando interno
 int internal_cd(char **args)
 {
 #if DEBUGN2
@@ -222,6 +246,7 @@ int internal_cd(char **args)
         if (chdir(args[1]) == -1)
         {
             perror("Error en internal_cd");
+            return -1;
         }
 #if DEBUGN3
         char prompt[COMMAND_LINE_SIZE];
@@ -233,14 +258,19 @@ int internal_cd(char **args)
         if (chdir(getenv("HOME")) == -1)
         {
             perror("Error en internal_cd");
+            return -1;
         }
 
 #if DEBUGN3
         fprintf(stderr, GRIS_T "[internal_cd()→ PWD: %s]\n" RESET, getenv("HOME"));
 #endif
     }
+    return 1;
 }
 
+/// @brief comando export para dar valores nuevos a variables de entorno
+/// @param args
+/// @return -1 si hay error, 1 si no lo hay para indicar que es comando interno
 int internal_export(char **args)
 {
 #if DEBUGN2
@@ -275,6 +305,7 @@ int internal_export(char **args)
         fprintf(stderr, GRIS_T "[internal_export()→ nuevo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
 #endif
     }
+    return 1;
 }
 
 int internal_source(char **args)

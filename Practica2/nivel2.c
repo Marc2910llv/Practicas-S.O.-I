@@ -45,7 +45,7 @@ Autor: Marc Llobera Villalonga
 
 #define DEBUGN1 0 // parse_args()
 #define DEBUGN2 0 // check_internal()
-#define DEBUGN3 1 // internal export & internal cd
+#define DEBUGN3 0 // internal export & internal cd
 
 void imprimir_prompt();
 char *read_line(char *line);
@@ -125,7 +125,10 @@ int execute_line(char *line)
 {
     char *args[ARGS_SIZE];
     parse_args(args, line);
-    return check_internal(args);
+    if (check_internal(args) == -1)
+    {
+        perror("Error\n");
+    }
 }
 
 /// @brief trocea la línea en tokens
@@ -201,7 +204,7 @@ int check_internal(char **args)
 
 /// @brief Comando cd para cambiar de directorio
 /// @param args
-/// @return
+/// @return -1 si hay error, 1 si no lo hay
 int internal_cd(char **args)
 {
 #if DEBUGN2
@@ -212,6 +215,7 @@ int internal_cd(char **args)
         if (chdir(args[1]) == -1)
         {
             perror("Error en internal_cd");
+            return -1;
         }
 #if DEBUGN3
         char prompt[COMMAND_LINE_SIZE];
@@ -223,14 +227,19 @@ int internal_cd(char **args)
         if (chdir(getenv("HOME")) == -1)
         {
             perror("Error en internal_cd");
+            return -1;
         }
 
 #if DEBUGN3
         fprintf(stderr, GRIS_T "[internal_cd()→ PWD: %s]\n" RESET, getenv("HOME"));
 #endif
     }
+    return 1;
 }
 
+/// @brief comando export para dar valores nuevos a variables de entorno
+/// @param args
+/// @return -1 si hay error, 1 si no lo hay
 int internal_export(char **args)
 {
 #if DEBUGN2
@@ -265,6 +274,7 @@ int internal_export(char **args)
         fprintf(stderr, GRIS_T "[internal_export()→ nuevo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
 #endif
     }
+    return 1;
 }
 
 int internal_source(char **args)
