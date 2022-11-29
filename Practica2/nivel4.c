@@ -1,11 +1,20 @@
 /*
 -------------------------------------------------------------------------------------------------
-Nivel 3 de la Práctica 2
+Nivel 4 de la Práctica 2
 
-En este nivel prepararemos nuestro minishell para que sea capaz de ejecutar, a través de la
-llamada al sistema execvp(), los comandos que no sean internos. Cada vez que detectemos que se
-trata de un comando externo, el minishell (proceso padre) creará un hijo que se encargue de él.
-También seguiremos implementando comandos internos, en concreto el source.
+En este nivel nuestro mini shell (proceso padre) gestionará diversas señales mediante unos
+manejadores propios. En concreto será capaz de responder a la señal de interrupción SIGINT,
+generada por el usuario desde teclado al pulsar Ctrl + C, provocando que aborte el proceso hijo
+(comando externo) que estaba en ejecución en primer plano (sin abortar el proceso padre y por
+tanto permaneciendo dentro del mini shell). También dispondrá de un manejador propio para la
+señal SIGCHLD, (al manejador le llamaremos reaper()) que se activará automáticamente en el
+momento en que se genera tal señal al finalizar un hijo. Será este manejador quien utilice la
+llamada al sistema waitpid(), informando por pantalla cuándo un hijo finaliza y con qué estado.
+De esta manera, podremos indicar que el proceso padre (el mini shell) sólo esté en espera
+condicionado a que haya un proceso en ejecución en primer plano (no lo hará para los de segundo
+plano que crearemos más adelante) y además lo hará hasta que se produzca cualquier señal que
+afecte a éste  (no solo la de SIGCHLD sino también la SIGINT, y más adelante también gestionará
+la SIGTSTP producida al pulsar el usuario las teclas Ctrl + Z).
 
 
 Autor: Marc Llobera Villalonga
@@ -47,8 +56,8 @@ Autor: Marc Llobera Villalonga
 #define DEBUGN1 0 // parse_args()
 #define DEBUGN2 1 // check_internal()
 #define DEBUGN3 0 // internal export & internal cd
-#define DEBUGN4 1 // execute_line()
-#define DEBUGN5 1 // internal source
+#define DEBUGN4 0 // execute_line()
+#define DEBUGN5 0 // internal source
 
 void imprimir_prompt();
 char *read_line(char *line);
@@ -185,11 +194,10 @@ int execute_line(char *line)
 #if DEBUGN4
                 fprintf(stderr, GRIS_T "[execute_line()→ PID padre: %d(%s)]\n" RESET, getpid(), mi_shell);
                 fprintf(stderr, GRIS_T "[execute_line()→ PID hijo: %d(%s)]\n" RESET, pid, auxline);
-#endif          
-                int i = pid;
+#endif
                 wait(&pid);
 #if DEBUGN4
-                fprintf(stderr, GRIS_T "[execute_line()→ Proceso hijo %d(%s) finalizado con exit(), estado: %d]\n" RESET, i, auxline, WEXITSTATUS(pid));
+                fprintf(stderr, GRIS_T "[execute_line()→ Proceso hijo %d(%s) finalizado con exit(), estado: %d]\n" RESET, pid, auxline, WEXITSTATUS(pid));
 #endif
                 resetear_joblist_0();
             }
