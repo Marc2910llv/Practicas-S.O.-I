@@ -186,9 +186,9 @@ int execute_line(char *line)
                 fprintf(stderr, GRIS_T "[execute_line()→ PID padre: %d(%s)]\n" RESET, getpid(), mi_shell);
                 fprintf(stderr, GRIS_T "[execute_line()→ PID hijo: %d(%s)]\n" RESET, pid, auxline);
 #endif
-                wait(NULL);
+                wait(&pid);
 #if DEBUGN4
-                fprintf(stderr, GRIS_T "[execute_line()→ Proceso hijo %d(%s) finalizado con exit(), estado: 0]\n" RESET, pid, auxline);
+                fprintf(stderr, GRIS_T "[execute_line()→ Proceso hijo %d(%s) finalizado con exit(), estado: %d]\n" RESET, pid, auxline, WEXITSTATUS(pid));
 #endif
                 resetear_joblist_0();
             }
