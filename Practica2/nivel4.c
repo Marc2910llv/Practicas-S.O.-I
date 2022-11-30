@@ -56,12 +56,16 @@ Autor: Marc Llobera Villalonga
 #define DEBUGN1 0 // parse_args()
 #define DEBUGN2 1 // check_internal()
 #define DEBUGN3 0 // internal export & internal cd
-#define DEBUGN4 0 // execute_line()
+#define DEBUGN4 1 // execute_line()
 #define DEBUGN5 0 // internal source
+#define DEBUGN6 1 // reaper
+#define DEBUGN7 1 // ctrlc
 
 void imprimir_prompt();
 char *read_line(char *line);
 int execute_line(char *line);
+void reaper(int signum);
+void ctrlc(int signum);
 int parse_args(char **args, char *line);
 int check_internal(char **args);
 
@@ -134,6 +138,8 @@ int main(int argc, char *argv[])
 
     while (1)
     {
+        signal(SIGCHLD, reaper);
+        signal(SIGINT, ctrlc);
         if (read_line(line))
         { // !=NULL
             execute_line(line);
@@ -175,7 +181,8 @@ int execute_line(char *line)
 {
     char *args[ARGS_SIZE];
     pid_t pid;
-    char *auxline = line;
+    char auxline[COMMAND_LINE_SIZE];
+    strcpy(auxline, line);
     if (parse_args(args, line) > 0)
     {
         int rtn = check_internal(args);
@@ -184,6 +191,9 @@ int execute_line(char *line)
             pid = fork();
             if (pid == 0) // HIJO
             {
+                signal(SIGCHLD, SIG_DFL); // Asociamos SIGCHLD
+                signal(SIGINT, SIG_IGN);  // Ignoramos SIGINT
+                signal(SIGSTOP, SIG_IGN);
                 execvp(args[0], args);
                 fprintf(stderr, ROJO_T "%s: no se encontró la orden\n" RESET, args[0]);
                 exit(-1);
@@ -195,11 +205,10 @@ int execute_line(char *line)
                 fprintf(stderr, GRIS_T "[execute_line()→ PID padre: %d(%s)]\n" RESET, getpid(), mi_shell);
                 fprintf(stderr, GRIS_T "[execute_line()→ PID hijo: %d(%s)]\n" RESET, pid, auxline);
 #endif
-                wait(&pid);
-#if DEBUGN4
-                fprintf(stderr, GRIS_T "[execute_line()→ Proceso hijo %d(%s) finalizado con exit(), estado: %d]\n" RESET, pid, auxline, WEXITSTATUS(pid));
-#endif
-                resetear_joblist_0();
+                while (jobs_list[0].pid > 0)
+                {
+                    pause();
+                }
             }
             else // error
             {
@@ -208,6 +217,82 @@ int execute_line(char *line)
         }
     }
     return 0;
+}
+
+/// @brief Manejador propio para la señal SIGCHLD
+/// @param signum
+void reaper(int signum)
+{
+    signal(SIGCHLD, reaper); // Asociamos SIGCHLD
+    pid_t ended, status;
+    while ((ended = waitpid(-1, &status, WNOHANG)) > 0)
+    {
+#if DEBUGN6
+        if (WIFEXITED(status))
+        {
+            char mensaje[3000];
+            sprintf(mensaje, GRIS_T "[reaper()→ Proceso hijo %d (%s) ha finalizado con exit code %d]\n" RESET, ended, jobs_list[0].cmd, WEXITSTATUS(status));
+            write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
+        }
+        else if (WIFSIGNALED(status))
+        {
+            if (WTERMSIG(status))
+            {
+                char mensaje[3000];
+                sprintf(mensaje, GRIS_T "[reaper()→ Proceso hijo %d (%s) ha terminado por señal %d]\n" RESET, ended, jobs_list[0].cmd, WTERMSIG(status));
+                write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
+            }
+        }
+#endif
+        resetear_joblist_0();
+    }
+    resetear_joblist_0();
+}
+
+/// @brief Manejador propio para la señal SIGINT
+/// @param signum
+void ctrlc(int signum)
+{
+    signal(SIGINT, ctrlc);
+    pid_t pid;
+    pid = jobs_list[0].pid;
+#if DEBUGN7
+    char mensaje[3000];
+    sprintf(mensaje, GRIS_T "\n[ctrlc()→ Soy el proceso con PID %d(%s), el proceso en foreground es %d(%s)]\n" RESET, getpid(), mi_shell, pid, jobs_list[0].cmd);
+    write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
+#endif
+    if (jobs_list[0].pid > 0)
+    {
+        if (strncmp(jobs_list[0].cmd, mi_shell, COMMAND_LINE_SIZE) != 0)
+        {
+            // ya que puedo haber ejecutado el minishell dentro del minishell
+            if (kill(pid, SIGTERM) == -1)
+            {
+                perror("Error: ");
+            }
+        }
+        else
+        {
+#if DEBUGN7
+            char mensaje[3000];
+            sprintf(mensaje, GRIS_T "\n[ctrlc()→ Señal %d no enviada por %d(%s) debido a que su proceso en foreground es el shell]\n" RESET, SIGTERM, getpid(), mi_shell);
+            write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
+#endif
+        }
+    }
+    else
+    {
+#if DEBUGN7
+        char mensaje[3000];
+        sprintf(mensaje, GRIS_T "[ctrlc()→ Señal %d no enviada por %d(%s), debido a que no hay proceso en foreground]\n" RESET, SIGTERM, getpid(), mi_shell);
+        write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
+#endif
+    }
+#if DEBUGN7
+    sprintf(mensaje, GRIS_T "[ctrlc()→ Señal %d enviada a %d(%s) por %d(%s)]\n" RESET, SIGTERM, pid, jobs_list[0].cmd, getpid(), mi_shell);
+    write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
+#endif
+    fflush(stdout);
 }
 
 /// @brief trocea la línea en tokens
