@@ -3,7 +3,7 @@
 Nivel 6 de la Práctica 2
 
 En este nivel añadiremos otros 2 comandos internos más, el fg y el bg, que nos permitirán jugar
-con la reactivación de procesos detenidos y el paso de primer plano a segundo y viceversa. 
+con la reactivación de procesos detenidos y el paso de primer plano a segundo y viceversa.
 
 Además, la salida de cualquiera de los comandos externos ejecutados desde nuestro mini shell
 tiene que poder ser direccionada a un archivo en vez de aparecer por pantalla.
@@ -46,13 +46,15 @@ Autor: Marc Llobera Villalonga
 #define PROMPT '$'
 
 #define DEBUGN1 0 // parse_args()
-#define DEBUGN2 1 // check_internal()
-#define DEBUGN3 0 // internal export & internal cd
-#define DEBUGN4 1 // execute_line()
-#define DEBUGN5 0 // internal source
-#define DEBUGN6 0 // reaper
-#define DEBUGN7 0 // ctrlc
-#define DEBUGN8 0 // ctrlz
+// #define DEBUGN2 1 // check_internal()
+#define DEBUGN3 0  // internal export & internal cd
+#define DEBUGN4 0  // execute_line()
+#define DEBUGN5 0  // internal source
+#define DEBUGN6 0  // reaper
+#define DEBUGN7 0  // ctrlc
+#define DEBUGN8 0  // ctrlz
+#define DEBUGN9 1  // internal_fg
+#define DEBUGN10 1 // internal_bg
 
 void imprimir_prompt();
 char *read_line(char *line);
@@ -67,7 +69,7 @@ int jobs_list_find(pid_t pid);
 int jobs_list_remove(int pos);
 int check_internal(char **args);
 
-int n_pids = 1; // cantidad de trabajos detenidos o en background
+int n_pids = 0; // cantidad de trabajos detenidos o en background
 
 // COMANDOS INTERNOS --------------
 int internal_cd(char **args);
@@ -230,7 +232,7 @@ int execute_line(char *line)
                     fprintf(stderr, GRIS_T "[execute_line()→ PID padre: %d(%s)]\n" RESET, getpid(), mi_shell);
                     fprintf(stderr, GRIS_T "[execute_line()→ PID hijo: %d(%s)]\n" RESET, pid, auxline);
 #endif
-                    fprintf(stderr, "[%d] %d    %c    %s\n", n_pids - 1, jobs_list[n_pids - 1].pid, jobs_list[n_pids - 1].status, jobs_list[n_pids - 1].cmd);
+                    fprintf(stderr, "[%d] %d    %c    %s\n", n_pids, jobs_list[n_pids].pid, jobs_list[n_pids].status, jobs_list[n_pids].cmd);
                 }
             }
             else // error
@@ -371,7 +373,7 @@ void ctrlz(int signum)
             write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
 #endif
             jobs_list_add(jobs_list[0].pid, 'D', jobs_list[0].cmd);
-            printf("[%d]  %d    %c    %s\n", n_pids-1, jobs_list[n_pids - 1].pid, jobs_list[n_pids - 1].status, jobs_list[n_pids - 1].cmd);
+            printf("[%d]  %d    %c    %s\n", n_pids, jobs_list[n_pids].pid, jobs_list[n_pids].status, jobs_list[n_pids].cmd);
             resetear_joblist_0();
         }
         else
@@ -450,10 +452,10 @@ int jobs_list_add(pid_t pid, char status, char *cmd)
 {
     if (n_pids < N_JOBS) // si n_pids es menor a N_JOBS, aún podemos añadir más trabajos
     {
+        n_pids++;
         jobs_list[n_pids].pid = pid;
         jobs_list[n_pids].status = status;
         strcpy(jobs_list[n_pids].cmd, cmd);
-        n_pids++;
         return 0;
     }
     else // no se pueden añadir más trabajos
@@ -481,13 +483,13 @@ int jobs_list_find(pid_t pid)
 /// @param pos
 int jobs_list_remove(int pos)
 {
-    n_pids--;
     jobs_list[pos].pid = jobs_list[n_pids].pid;
     jobs_list[pos].status = jobs_list[n_pids].status;
     strcpy(jobs_list[pos].cmd, jobs_list[n_pids].cmd);
     jobs_list[n_pids].pid = 0;
     jobs_list[n_pids].status = 'N';
     strcpy(jobs_list[n_pids].cmd, "\0");
+    n_pids--;
     return 0;
 }
 
@@ -585,9 +587,11 @@ int internal_export(char **args)
     }
     else
     {
-        setenv(valor, nombre, 1); ///////////////*****************Preguntar porque no funciona*************//////////////////
 #if DEBUGN3
         fprintf(stderr, GRIS_T "[internal_export()→ antiguo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
+#endif
+        setenv(nombre, valor, 1);
+#if DEBUGN3
         fprintf(stderr, GRIS_T "[internal_export()→ nuevo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
 #endif
     }
@@ -630,7 +634,7 @@ int internal_source(char **args)
 
     if (fclose(fp) != 0)
     {
-        perror("Error, no se ha cerrado el fichero correctamente\n");
+        fprintf(stderr, ROJO_T "Error, no se ha cerrado el fichero correctamente\n" RESET);
         return -1;
     }
     return 1;
@@ -648,24 +652,56 @@ int internal_jobs(char **args)
     return 1;
 }
 
-/// @brief
+/// @brief enviará al foreground un proceso detenido o que esté en el background
 /// @param args
 /// @return
 int internal_bg(char **args)
 {
-#if DEBUGN2
-    fprintf(stderr, GRIS_T "[internal_fg()→ Esta función enviará al foreground un proceso detenido o que esté en el background]\n" RESET);
-#endif
     return 1;
 }
 
-/// @brief
+/// @brief reactivará un proceso detenido y lo enviará al background
 /// @param args
 /// @return
 int internal_fg(char **args)
 {
-#if DEBUGN2
-    fprintf(stderr, GRIS_T "[internal_bg()→ Esta función reactivará un proceso detenido y lo enviará al background]\n" RESET);
+    int pos = atoi(args[1]);
+
+    if (pos >= n_pids || pos == 0)
+    {
+        fprintf(stderr, ROJO_T "No se ha encontrado este trbajo\n" RESET);
+        return 1;
+    }
+
+    if (jobs_list[pos].status == 'D')
+    {
+        if (kill(jobs_list[pos].pid, SIGCONT) == -1)
+        {
+            perror("Error: ");
+        }
+    }
+
+#if DEBUGN9
+    fprintf(stderr, GRIS_T "[internal_fg()→ Señal %d(SIGCONT) enviada a %d(%s)]\n" RESET, SIGCONT, jobs_list[pos].pid, jobs_list[pos].cmd);
 #endif
+
+    if (strchr(jobs_list[pos].cmd, '&') != NULL)
+    {
+        char aux[COMMAND_LINE_SIZE];
+        memset(aux, '\0', sizeof(aux));
+        strncpy(aux, jobs_list[0].cmd, strlen(jobs_list[pos].cmd) - 1);
+        strcpy(jobs_list[pos].cmd, aux);
+    }
+    actualizar_joblist_0(jobs_list[pos].pid, jobs_list[pos].cmd);
+
+    jobs_list_remove(pos);
+
+    fprintf(stderr, "%s\n", jobs_list[0].cmd);
+
+    while (jobs_list[0].pid > 0)
+    {
+        pause();
+    }
+
     return 1;
 }

@@ -208,9 +208,6 @@ int check_internal(char **args)
 /// @return -1 si hay error, 1 si no lo hay
 int internal_cd(char **args)
 {
-#if DEBUGN2
-    fprintf(stderr, GRIS_T "[internal_cd()→ Esta función cambiará de directorio]\n" RESET);
-#endif
     if (args[1] != NULL)
     {
         if (chdir(args[1]) == -1)
@@ -243,9 +240,6 @@ int internal_cd(char **args)
 /// @return -1 si hay error, 1 si no lo hay
 int internal_export(char **args)
 {
-#if DEBUGN2
-    fprintf(stderr, GRIS_T "[internal_export()→Esta función asignará valores a variablescd de entorno]\n" RESET);
-#endif
     char *nombre;
     char *valor;
     nombre = strtok(args[1], "=");
@@ -272,7 +266,7 @@ int internal_export(char **args)
 #if DEBUGN3
         fprintf(stderr, GRIS_T "[internal_export()→ antiguo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
 #endif
-        setenv(nombre, valor, 1); ///////////////
+        setenv(nombre, valor, 1);
 #if DEBUGN3
         fprintf(stderr, GRIS_T "[internal_export()→ nuevo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
 #endif

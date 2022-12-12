@@ -73,7 +73,7 @@ int jobs_list_find(pid_t pid);
 int jobs_list_remove(int pos);
 int check_internal(char **args);
 
-int n_pids = 1; // cantidad de trabajos detenidos o en background
+int n_pids = 0; // cantidad de trabajos detenidos o en background
 
 // COMANDOS INTERNOS --------------
 int internal_cd(char **args);
@@ -236,7 +236,7 @@ int execute_line(char *line)
                     fprintf(stderr, GRIS_T "[execute_line()→ PID padre: %d(%s)]\n" RESET, getpid(), mi_shell);
                     fprintf(stderr, GRIS_T "[execute_line()→ PID hijo: %d(%s)]\n" RESET, pid, auxline);
 #endif
-                    fprintf(stderr, "[%d] %d    %c    %s\n", n_pids - 1, jobs_list[n_pids - 1].pid, jobs_list[n_pids - 1].status, jobs_list[n_pids - 1].cmd);
+                    fprintf(stderr, "[%d] %d    %c    %s\n", n_pids, jobs_list[n_pids].pid, jobs_list[n_pids].status, jobs_list[n_pids].cmd);
                 }
             }
             else // error
@@ -377,7 +377,7 @@ void ctrlz(int signum)
             write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
 #endif
             jobs_list_add(jobs_list[0].pid, 'D', jobs_list[0].cmd);
-            printf("[%d]  %d    %c    %s\n", n_pids-1, jobs_list[n_pids - 1].pid, jobs_list[n_pids - 1].status, jobs_list[n_pids - 1].cmd);
+            printf("[%d]  %d    %c    %s\n", n_pids, jobs_list[n_pids].pid, jobs_list[n_pids].status, jobs_list[n_pids].cmd);
             resetear_joblist_0();
         }
         else
@@ -456,10 +456,10 @@ int jobs_list_add(pid_t pid, char status, char *cmd)
 {
     if (n_pids < N_JOBS) // si n_pids es menor a N_JOBS, aún podemos añadir más trabajos
     {
+        n_pids++;
         jobs_list[n_pids].pid = pid;
         jobs_list[n_pids].status = status;
         strcpy(jobs_list[n_pids].cmd, cmd);
-        n_pids++;
         return 0;
     }
     else // no se pueden añadir más trabajos
@@ -487,13 +487,13 @@ int jobs_list_find(pid_t pid)
 /// @param pos
 int jobs_list_remove(int pos)
 {
-    n_pids--;
     jobs_list[pos].pid = jobs_list[n_pids].pid;
     jobs_list[pos].status = jobs_list[n_pids].status;
     strcpy(jobs_list[pos].cmd, jobs_list[n_pids].cmd);
     jobs_list[n_pids].pid = 0;
     jobs_list[n_pids].status = 'N';
     strcpy(jobs_list[n_pids].cmd, "\0");
+    n_pids--;
     return 0;
 }
 
@@ -591,9 +591,11 @@ int internal_export(char **args)
     }
     else
     {
-        setenv(valor, nombre, 1); ///////////////*****************Preguntar porque no funciona*************//////////////////
 #if DEBUGN3
         fprintf(stderr, GRIS_T "[internal_export()→ antiguo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
+#endif
+        setenv(nombre, valor, 1);
+#if DEBUGN3
         fprintf(stderr, GRIS_T "[internal_export()→ nuevo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
 #endif
     }
