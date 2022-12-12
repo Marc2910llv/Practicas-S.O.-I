@@ -67,6 +67,7 @@ int is_background(char **args);
 int jobs_list_add(pid_t pid, char status, char *cmd);
 int jobs_list_find(pid_t pid);
 int jobs_list_remove(int pos);
+int is_output_redirection(char **args);
 int check_internal(char **args);
 
 int n_pids = 0; // cantidad de trabajos detenidos o en background
@@ -493,6 +494,37 @@ int jobs_list_remove(int pos)
     return 0;
 }
 
+/// @brief realiza un redireccionamiento entre ficheros
+/// @param args
+/// @return
+int is_output_redirection(char **args)
+{
+    int pos = 0;
+    while (args[pos] != NULL)
+    {
+        if (strchr(args[pos], '>') != NULL)
+        {
+            args[pos] = NULL;
+            int fd = open(args[pos + 1], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+            if (fd < 0)
+            {
+                perror("Error: ");
+            }
+            if (dup2(fd, 1) < 0)
+            {
+                perror("Error: ");
+            }
+            if (close(fd) < 0)
+            {
+                perror("Error: ");
+            }
+            return 1;
+        }
+        pos++;
+    }
+    return 0;
+}
+
 /// @brief comprueba si comando introducido es interno
 /// @param args
 /// @return devuelve 0 si no es un comando interno, o 1 al contrario a través de la llamada a las funciones correspondientes
@@ -531,14 +563,14 @@ int check_internal(char **args)
 
 /// @brief Comando cd para cambiar de directorio
 /// @param args
-/// @return -1 si hay error, 1 si no lo hay para indicar que es comando interno
+/// @return 1 para indicar que es comando interno
 int internal_cd(char **args)
 {
     if (args[1] != NULL)
     {
         if (chdir(args[1]) == -1)
         {
-            return -1;
+            return 1;
         }
 #if DEBUGN3
         char prompt[COMMAND_LINE_SIZE];
@@ -549,7 +581,7 @@ int internal_cd(char **args)
     {
         if (chdir(getenv("HOME")) == -1)
         {
-            return -1;
+            return 1;
         }
 
 #if DEBUGN3
@@ -561,7 +593,7 @@ int internal_cd(char **args)
 
 /// @brief comando export para dar valores nuevos a variables de entorno
 /// @param args
-/// @return -1 si hay error, 1 si no lo hay para indicar que es comando interno
+/// @return 1 para indicar que es comando interno
 int internal_export(char **args)
 {
     char *nombre;
@@ -571,7 +603,7 @@ int internal_export(char **args)
     if (nombre == NULL)
     {
         fprintf(stderr, ROJO_T "Error de sintaxis. Uso: export Nombre=Valor\n" RESET);
-        return -1;
+        return 1;
     }
     else
     {
@@ -583,7 +615,7 @@ int internal_export(char **args)
     if (valor == NULL)
     {
         fprintf(stderr, ROJO_T "Error de sintaxis. Uso: export Nombre=Valor\n" RESET);
-        return -1;
+        return 1;
     }
     else
     {
@@ -600,20 +632,20 @@ int internal_export(char **args)
 
 /// @brief Se comprueban los argumentos y se muestra la sintaxis en caso de no ser correcta
 /// @param args
-/// @return -1 si hay error, 1 si no lo hay para indicar que es comando interno
+/// @return 1 para indicar que es comando interno
 int internal_source(char **args)
 {
     if (args[1] == NULL)
     {
         fprintf(stderr, ROJO_T "Error de sintaxis. Uso: source <nombre_fichero>\n" RESET);
-        return -1;
+        return 1;
     }
 
     FILE *fp = fopen(args[1], "r");
     if (fp == 0)
     {
         fprintf(stderr, ROJO_T "Error, no se encontró el fichero\n" RESET);
-        return -1;
+        return 1;
     }
 
     char str[COMMAND_LINE_SIZE];
@@ -654,15 +686,43 @@ int internal_jobs(char **args)
 
 /// @brief enviará al foreground un proceso detenido o que esté en el background
 /// @param args
-/// @return
+/// @return 1 para indicar que es comando interno
 int internal_bg(char **args)
 {
+    int pos = atoi(args[1]);
+
+    if (pos >= n_pids || pos == 0)
+    {
+        fprintf(stderr, ROJO_T "No se ha encontrado este trbajo\n" RESET);
+        return 1;
+    }
+
+    if (jobs_list[pos].status == 'E')
+    {
+        fprintf(stderr, ROJO_T "El trabajo ya está en 2º plano\n" RESET);
+        return 1;
+    }
+
+    jobs_list[pos].status = 'E';
+
+    if (strchr(jobs_list[pos].cmd, '&') == NULL)
+    {
+        strcat(jobs_list[pos].cmd, " &");
+    }
+
+    if (kill(jobs_list[pos].pid, SIGCONT) == -1)
+    {
+        perror("Error: ");
+    }
+
+    fprintf(stderr, "[%d] %d    %c    %s\n", pos, jobs_list[pos].pid, jobs_list[pos].status, jobs_list[pos].cmd);
+
     return 1;
 }
 
 /// @brief reactivará un proceso detenido y lo enviará al background
 /// @param args
-/// @return
+/// @return 1 para indicar que es comando interno
 int internal_fg(char **args)
 {
     int pos = atoi(args[1]);
