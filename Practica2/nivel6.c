@@ -200,6 +200,17 @@ int execute_line(char *line)
                 signal(SIGCHLD, SIG_DFL); // Asociamos SIGCHLD
                 signal(SIGINT, SIG_IGN);  // Ignoramos SIGINT
                 signal(SIGTSTP, SIG_IGN); // Ignoramos SIGSTP
+                if (is_output_redirection(args) == 1)
+                {
+                    for (int i = 0; i < ARGS_SIZE; i++)
+                    {
+                        if (args[i] == NULL)
+                        {
+                            args[i + 1] = NULL;
+                            break;
+                        }
+                    }
+                }
                 execvp(args[0], args);
                 fprintf(stderr, ROJO_T "%s: no se encontró la orden\n" RESET, args[0]);
                 exit(-1);
@@ -251,12 +262,12 @@ void reaper(int signum)
 {
     signal(SIGCHLD, reaper); // Asociamos SIGCHLD
     pid_t ended, status;
+    char mensaje[3000];
     while ((ended = waitpid(-1, &status, WNOHANG)) > 0)
     {
         if (ended == jobs_list[0].pid)
         {
 #if DEBUGN6
-            char mensaje[3000];
             sprintf(mensaje, GRIS_T "\n[reaper()→ recibida señal %d(SIGCHLD)]\n" RESET, SIGCHLD);
             write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
             if (WIFEXITED(status))
@@ -279,13 +290,15 @@ void reaper(int signum)
         {
             int pos = jobs_list_find(ended);
 #if DEBUGN6
-            char mensaje[3000];
             sprintf(mensaje, GRIS_T "\n[reaper()→ recibida señal %d(SIGCHLD)]\n" RESET, SIGCHLD);
             write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
+#endif
             if (WIFEXITED(status))
             {
+#if DEBUGN6
                 sprintf(mensaje, GRIS_T "[reaper()→ Proceso hijo %d en background (%s) ha finalizado con exit code %d]\n" RESET, ended, jobs_list[pos].cmd, WEXITSTATUS(status));
                 write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
+#endif
                 sprintf(mensaje, "Terminado PID %d (%s) en jobs_list[%d] con status %d\n", ended, jobs_list[pos].cmd, pos, WEXITSTATUS(status));
                 write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
             }
@@ -293,13 +306,14 @@ void reaper(int signum)
             {
                 if (WTERMSIG(status))
                 {
+#if DEBUGN6
                     sprintf(mensaje, GRIS_T "[reaper()→ Proceso hijo %d en background (%s) ha terminado por señal %d]\n" RESET, ended, jobs_list[pos].cmd, WTERMSIG(status));
                     write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
+#endif
                     sprintf(mensaje, "Terminado PID %d (%s) en jobs_list[%d] con status %d\n", ended, jobs_list[pos].cmd, pos, WTERMSIG(status));
                     write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
                 }
             }
-#endif
             jobs_list_remove(pos);
         }
     }
@@ -311,8 +325,10 @@ void ctrlc(int signum)
 {
     signal(SIGINT, ctrlc);
     pid_t pid = jobs_list[0].pid;
-#if DEBUGN7
     char mensaje[3000];
+    sprintf(mensaje, "\n");
+    write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
+#if DEBUGN7
     sprintf(mensaje, GRIS_T "\n[ctrlc()→ Soy el proceso con PID %d(%s), el proceso en foreground es %d(%s)]\n" RESET, getpid(), mi_shell, pid, jobs_list[0].cmd);
     write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
     sprintf(mensaje, GRIS_T "[ctrlc()→ recibida señal %d(SIGINT)]\n" RESET, SIGINT);
@@ -354,8 +370,10 @@ void ctrlz(int signum)
 {
     signal(SIGTSTP, ctrlz);
     pid_t pid = jobs_list[0].pid;
-#if DEBUGN8
     char mensaje[3000];
+    sprintf(mensaje, "\n");
+    write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
+#if DEBUGN8
     sprintf(mensaje, GRIS_T "\n[ctrlz()→ Soy el proceso con PID %d, el proceso en foreground es %d(%s)]\n" RESET, getpid(), pid, jobs_list[0].cmd);
     write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
     sprintf(mensaje, GRIS_T "[ctrlz()→ recibida señal %d(SIGTSTP)]\n" RESET, SIGTSTP);
@@ -374,7 +392,8 @@ void ctrlz(int signum)
             write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
 #endif
             jobs_list_add(jobs_list[0].pid, 'D', jobs_list[0].cmd);
-            printf("[%d]  %d    %c    %s\n", n_pids, jobs_list[n_pids].pid, jobs_list[n_pids].status, jobs_list[n_pids].cmd);
+            sprintf(mensaje, "[%d]  %d    %c    %s\n", n_pids, jobs_list[n_pids].pid, jobs_list[n_pids].status, jobs_list[n_pids].cmd);
+            write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
             resetear_joblist_0();
         }
         else
@@ -691,15 +710,15 @@ int internal_bg(char **args)
 {
     int pos = atoi(args[1]);
 
-    if (pos >= n_pids || pos == 0)
+    if (pos > n_pids || pos == 0)
     {
-        fprintf(stderr, ROJO_T "No se ha encontrado este trbajo\n" RESET);
+        fprintf(stderr, ROJO_T "%s %s: no existe ese trabajo\n" RESET, args[0], args[1]);
         return 1;
     }
 
     if (jobs_list[pos].status == 'E')
     {
-        fprintf(stderr, ROJO_T "El trabajo ya está en 2º plano\n" RESET);
+        fprintf(stderr, ROJO_T "%s %s: el trabajo ya está en segundo plano\n" RESET, args[0], args[1]);
         return 1;
     }
 
@@ -715,6 +734,10 @@ int internal_bg(char **args)
         perror("Error: ");
     }
 
+#if DEBUGN10
+    fprintf(stderr, GRIS_T "[internal_bg()→ Señal %d(SIGCONT) enviada a %d(%s)]\n" RESET, SIGCONT, jobs_list[pos].pid, jobs_list[pos].cmd);
+#endif
+
     fprintf(stderr, "[%d] %d    %c    %s\n", pos, jobs_list[pos].pid, jobs_list[pos].status, jobs_list[pos].cmd);
 
     return 1;
@@ -727,9 +750,9 @@ int internal_fg(char **args)
 {
     int pos = atoi(args[1]);
 
-    if (pos >= n_pids || pos == 0)
+    if (pos > n_pids || pos == 0)
     {
-        fprintf(stderr, ROJO_T "No se ha encontrado este trbajo\n" RESET);
+        fprintf(stderr, ROJO_T "%s %s: no existe ese trabajo\n" RESET, args[0], args[1]);
         return 1;
     }
 
@@ -739,17 +762,16 @@ int internal_fg(char **args)
         {
             perror("Error: ");
         }
-    }
-
 #if DEBUGN9
-    fprintf(stderr, GRIS_T "[internal_fg()→ Señal %d(SIGCONT) enviada a %d(%s)]\n" RESET, SIGCONT, jobs_list[pos].pid, jobs_list[pos].cmd);
+        fprintf(stderr, GRIS_T "[internal_fg()→ Señal %d(SIGCONT) enviada a %d(%s)]\n" RESET, SIGCONT, jobs_list[pos].pid, jobs_list[pos].cmd);
 #endif
+    }
 
     if (strchr(jobs_list[pos].cmd, '&') != NULL)
     {
         char aux[COMMAND_LINE_SIZE];
         memset(aux, '\0', sizeof(aux));
-        strncpy(aux, jobs_list[0].cmd, strlen(jobs_list[pos].cmd) - 1);
+        strncpy(aux, jobs_list[pos].cmd, strlen(jobs_list[pos].cmd) - 1);
         strcpy(jobs_list[pos].cmd, aux);
     }
     actualizar_joblist_0(jobs_list[pos].pid, jobs_list[pos].cmd);
