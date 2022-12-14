@@ -11,8 +11,8 @@ OBJS=$(SOURCES:.c=.o)
 
 all: $(OBJS) $(PROGRAMS)
  
-#$(PROGRAMS): $(LIBRARIES) $(INCLUDES)
-#	$(CC) $(LDFLAGS) $(LIBRARIES) $@.o -o $@
+$(PROGRAMS): $(LIBRARIES) $(INCLUDES)
+	$(CC) $(LDFLAGS) $(LIBRARIES) $@.o -o $@
  
 nivel1: nivel1.o
 	$(CC) $@.o -o $@ $(LIBRARIES)
@@ -31,9 +31,9 @@ nivel5: nivel5.o
 
 nivel6: nivel6.o
 	$(CC) $@.o -o $@ $(LIBRARIES)
- 
+
 my_shell: my_shell.o
-	$(CC) $@.o -o $@ $(LDFLAGS) $(LIBRARIES)
+	$(CC) $@.o -o $@ $(LIBRARIES)
  
 %.o: %.c $(INCLUDES)
 	$(CC) $(CFLAGS) -o $@ -c $<

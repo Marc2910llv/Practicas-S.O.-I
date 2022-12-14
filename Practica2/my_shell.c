@@ -472,6 +472,14 @@ int internal_cd(char **args)
 {
     if (args[1] != NULL)
     {
+        if (args[2] != NULL)
+        {
+            for (int i = 2; args[i] != NULL; i++)
+            {
+                strcat(args[1], args[i]);
+            }
+        }
+        fprintf(stderr, "%s\n", args[1]);
         if (chdir(args[1]) == -1)
         {
             return 1;
