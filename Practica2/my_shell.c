@@ -509,6 +509,7 @@ int internal_export(char **args)
     else
     {
         setenv(nombre, valor, 1);
+    }
     return 1;
 }
 
