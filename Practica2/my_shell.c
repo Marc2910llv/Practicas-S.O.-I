@@ -1,13 +1,6 @@
 /*
 -------------------------------------------------------------------------------------------------
-Nivel 6 de la Práctica 2
-
-En este nivel añadiremos otros 2 comandos internos más, el fg y el bg, que nos permitirán jugar
-con la reactivación de procesos detenidos y el paso de primer plano a segundo y viceversa.
-
-Además, la salida de cualquiera de los comandos externos ejecutados desde nuestro mini shell
-tiene que poder ser direccionada a un archivo en vez de aparecer por pantalla.
-
+my_shell
 
 Autor: Marc Llobera Villalonga
 -------------------------------------------------------------------------------------------------
@@ -44,17 +37,6 @@ Autor: Marc Llobera Villalonga
 #define N_JOBS 64
 
 #define PROMPT '$'
-
-#define DEBUGN1 0 // execute_line()
-#define DEBUGN2 0 // reaper()
-#define DEBUGN3 0 // ctrlc()
-#define DEBUGN4 0 // ctrlz()
-#define DEBUGN5 0 // parse_args()
-#define DEBUGN6 0 // internal_cd()
-#define DEBUGN7 0 // internal_export()
-#define DEBUGN8 0 // internal_source()
-#define DEBUGN9 1 // internal_bg
-#define DEBUGN10 1 // internal_fg
 
 void imprimir_prompt();
 char *read_line(char *line);
@@ -220,10 +202,6 @@ int execute_line(char *line)
                 if (bg == 0)
                 {
                     actualizar_joblist_0(pid, auxline);
-#if DEBUGN1
-                    fprintf(stderr, GRIS_T "[execute_line()→ PID padre: %d(%s)]\n" RESET, getpid(), mi_shell);
-                    fprintf(stderr, GRIS_T "[execute_line()→ PID hijo: %d(%s)]\n" RESET, pid, auxline);
-#endif
                     while (jobs_list[0].pid > 0)
                     {
                         pause();
@@ -240,10 +218,6 @@ int execute_line(char *line)
                         fprintf(stderr, ROJO_T "No se ha añadido el trabajo, el número de trabajos es máximo\n" RESET);
                         return 0;
                     }
-#if DEBUGN1
-                    fprintf(stderr, GRIS_T "[execute_line()→ PID padre: %d(%s)]\n" RESET, getpid(), mi_shell);
-                    fprintf(stderr, GRIS_T "[execute_line()→ PID hijo: %d(%s)]\n" RESET, pid, auxline);
-#endif
                     fprintf(stderr, "[%d] %d    %c    %s\n", n_pids, jobs_list[n_pids].pid, jobs_list[n_pids].status, jobs_list[n_pids].cmd);
                 }
             }
@@ -267,38 +241,13 @@ void reaper(int signum)
     {
         if (ended == jobs_list[0].pid)
         {
-#if DEBUGN2
-            sprintf(mensaje, GRIS_T "\n[reaper()→ recibida señal %d(SIGCHLD)]\n" RESET, SIGCHLD);
-            write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-            if (WIFEXITED(status))
-            {
-                sprintf(mensaje, GRIS_T "[reaper()→ Proceso hijo %d en foreground (%s) ha finalizado con exit code %d]\n" RESET, ended, jobs_list[0].cmd, WEXITSTATUS(status));
-                write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-            }
-            else if (WIFSIGNALED(status))
-            {
-                if (WTERMSIG(status))
-                {
-                    sprintf(mensaje, GRIS_T "[reaper()→ Proceso hijo %d en foreground (%s) ha terminado por señal %d]\n" RESET, ended, jobs_list[0].cmd, WTERMSIG(status));
-                    write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-                }
-            }
-#endif
             resetear_joblist_0();
         }
         else
         {
             int pos = jobs_list_find(ended);
-#if DEBUGN2
-            sprintf(mensaje, GRIS_T "\n[reaper()→ recibida señal %d(SIGCHLD)]\n" RESET, SIGCHLD);
-            write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#endif
             if (WIFEXITED(status))
             {
-#if DEBUGN2
-                sprintf(mensaje, GRIS_T "[reaper()→ Proceso hijo %d en background (%s) ha finalizado con exit code %d]\n" RESET, ended, jobs_list[pos].cmd, WEXITSTATUS(status));
-                write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#endif
                 sprintf(mensaje, "Terminado PID %d (%s) en jobs_list[%d] con status %d\n", ended, jobs_list[pos].cmd, pos, WEXITSTATUS(status));
                 write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
             }
@@ -306,10 +255,6 @@ void reaper(int signum)
             {
                 if (WTERMSIG(status))
                 {
-#if DEBUGN2
-                    sprintf(mensaje, GRIS_T "[reaper()→ Proceso hijo %d en background (%s) ha terminado por señal %d]\n" RESET, ended, jobs_list[pos].cmd, WTERMSIG(status));
-                    write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#endif
                     sprintf(mensaje, "Terminado PID %d (%s) en jobs_list[%d] con status %d\n", ended, jobs_list[pos].cmd, pos, WTERMSIG(status));
                     write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
                 }
@@ -328,12 +273,6 @@ void ctrlc(int signum)
     char mensaje[3000];
     sprintf(mensaje, "\n");
     write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#if DEBUGN3
-    sprintf(mensaje, GRIS_T "\n[ctrlc()→ Soy el proceso con PID %d(%s), el proceso en foreground es %d(%s)]\n" RESET, getpid(), mi_shell, pid, jobs_list[0].cmd);
-    write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-    sprintf(mensaje, GRIS_T "[ctrlc()→ recibida señal %d(SIGINT)]\n" RESET, SIGINT);
-    write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#endif
     if (pid > 0)
     {
         if (strcmp(jobs_list[0].cmd, mi_shell) != 0)
@@ -342,25 +281,7 @@ void ctrlc(int signum)
             {
                 perror("Error: ");
             }
-#if DEBUGN3
-            sprintf(mensaje, GRIS_T "[ctrlc()→ Señal %d(SIGTERM) enviada a %d(%s) por %d(%s)]\n" RESET, SIGTERM, pid, jobs_list[0].cmd, getpid(), mi_shell);
-            write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#endif
         }
-        else
-        {
-#if DEBUGN3
-            sprintf(mensaje, GRIS_T "[ctrlc()→ Señal %d(SIGTERM) no enviada por %d(%s) debido a que el proceso en foreground es el shell]\n" RESET, SIGTERM, getpid(), mi_shell);
-            write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#endif
-        }
-    }
-    else
-    {
-#if DEBUGN3
-        sprintf(mensaje, GRIS_T "[ctrlc()→ Señal %d(SIGTERM) no enviada por %d(%s) debido a que no hay proceso en foreground]\n" RESET, SIGTERM, getpid(), mi_shell);
-        write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#endif
     }
 }
 
@@ -373,12 +294,6 @@ void ctrlz(int signum)
     char mensaje[3000];
     sprintf(mensaje, "\n");
     write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#if DEBUGN4
-    sprintf(mensaje, GRIS_T "\n[ctrlz()→ Soy el proceso con PID %d, el proceso en foreground es %d(%s)]\n" RESET, getpid(), pid, jobs_list[0].cmd);
-    write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-    sprintf(mensaje, GRIS_T "[ctrlz()→ recibida señal %d(SIGTSTP)]\n" RESET, SIGTSTP);
-    write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#endif
     if (pid > 0)
     {
         if (strcmp(jobs_list[0].cmd, mi_shell) != 0)
@@ -387,29 +302,11 @@ void ctrlz(int signum)
             {
                 perror("Error: ");
             }
-#if DEBUGN4
-            sprintf(mensaje, GRIS_T "[ctrlz()→ Señal %d(SIGSTOP) enviada a %d(%s) por %d(%s)]\n" RESET, SIGSTOP, pid, jobs_list[0].cmd, getpid(), mi_shell);
-            write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#endif
             jobs_list_add(jobs_list[0].pid, 'D', jobs_list[0].cmd);
             sprintf(mensaje, "[%d]  %d    %c    %s\n", n_pids, jobs_list[n_pids].pid, jobs_list[n_pids].status, jobs_list[n_pids].cmd);
             write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
             resetear_joblist_0();
         }
-        else
-        {
-#if DEBUGN4
-            sprintf(mensaje, GRIS_T "[ctrlz()→ Señal %d(SIGSTOP) no enviada por %d(%s) debido a que el proceso en foreground es el shell]\n" RESET, SIGSTOP, getpid(), mi_shell);
-            write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#endif
-        }
-    }
-    else
-    {
-#if DEBUGN4
-        sprintf(mensaje, GRIS_T "[ctrlz()→ Señal %d(SIGSTOP) no enviada por %d(%s) debido a que no hay proceso en foreground]\n" RESET, SIGSTOP, getpid(), mi_shell);
-        write(2, mensaje, strlen(mensaje)); // 2 es el flujo stderr
-#endif
     }
 }
 
@@ -422,27 +319,15 @@ int parse_args(char **args, char *line)
     int i = 0;
     args[i] = strtok(line, " \t\n\r");
 
-#if DEBUGN5
-    fprintf(stderr, GRIS_T "[parse_args()→ token %i: %s]\n" RESET, i, args[i]);
-#endif
-
     while (args[i] && args[i][0] != '#')
     {
         i++;
         args[i] = strtok(NULL, " \t\n\r");
-
-#if DEBUGN5
-        fprintf(stderr, GRIS_T "[parse_args()→ token %i: %s]\n" RESET, i, args[i]);
-#endif
     }
 
     if (args[i])
     {
         args[i] = NULL;
-
-#if DEBUGN5
-        fprintf(stderr, GRIS_T "[parse_args()→ token %i corregido: %s]\n" RESET, i, args[i]);
-#endif
     }
 
     return i;
@@ -591,10 +476,6 @@ int internal_cd(char **args)
         {
             return 1;
         }
-#if DEBUGN6
-        char prompt[COMMAND_LINE_SIZE];
-        fprintf(stderr, GRIS_T "[internal_cd()→ PWD: %s]\n" RESET, getcwd(prompt, COMMAND_LINE_SIZE));
-#endif
     }
     else
     {
@@ -602,10 +483,6 @@ int internal_cd(char **args)
         {
             return 1;
         }
-
-#if DEBUGN6
-        fprintf(stderr, GRIS_T "[internal_cd()→ PWD: %s]\n" RESET, getenv("HOME"));
-#endif
     }
     return 1;
 }
@@ -624,13 +501,6 @@ int internal_export(char **args)
         fprintf(stderr, ROJO_T "Error de sintaxis. Uso: export Nombre=Valor\n" RESET);
         return 1;
     }
-    else
-    {
-#if DEBUGN7
-        fprintf(stderr, GRIS_T "[internal_export()→ nombre: %s]\n" RESET, nombre);
-        fprintf(stderr, GRIS_T "[internal_export()→ valor: %s]\n" RESET, valor);
-#endif
-    }
     if (valor == NULL)
     {
         fprintf(stderr, ROJO_T "Error de sintaxis. Uso: export Nombre=Valor\n" RESET);
@@ -638,14 +508,7 @@ int internal_export(char **args)
     }
     else
     {
-#if DEBUGN7
-        fprintf(stderr, GRIS_T "[internal_export()→ antiguo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
-#endif
         setenv(nombre, valor, 1);
-#if DEBUGN7
-        fprintf(stderr, GRIS_T "[internal_export()→ nuevo valor para %s: %s]\n" RESET, nombre, getenv(nombre));
-#endif
-    }
     return 1;
 }
 
@@ -676,9 +539,6 @@ int internal_source(char **args)
             i++;
         }
         str[i] = '\0';
-#if DEBUGN8
-        fprintf(stderr, GRIS_T "\n[internal_source()→ LINE: %s]\n" RESET, str);
-#endif
         fflush(stdout);
         execute_line(str);
     }
@@ -734,10 +594,6 @@ int internal_bg(char **args)
         perror("Error: ");
     }
 
-#if DEBUGN9
-    fprintf(stderr, GRIS_T "[internal_bg()→ Señal %d(SIGCONT) enviada a %d(%s)]\n" RESET, SIGCONT, jobs_list[pos].pid, jobs_list[pos].cmd);
-#endif
-
     fprintf(stderr, "[%d] %d    %c    %s\n", pos, jobs_list[pos].pid, jobs_list[pos].status, jobs_list[pos].cmd);
 
     return 1;
@@ -762,9 +618,6 @@ int internal_fg(char **args)
         {
             perror("Error: ");
         }
-#if DEBUGN10
-        fprintf(stderr, GRIS_T "[internal_fg()→ Señal %d(SIGCONT) enviada a %d(%s)]\n" RESET, SIGCONT, jobs_list[pos].pid, jobs_list[pos].cmd);
-#endif
     }
 
     if (strchr(jobs_list[pos].cmd, '&') != NULL)
